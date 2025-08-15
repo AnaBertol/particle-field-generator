@@ -354,6 +354,46 @@
             document.getElementById(id).textContent = value + (id.includes('Value') && !id.includes('Count') ? '' : '');
         }
 
+        function updateCanvasInfo() {
+            const canvasInfo = document.getElementById('canvasInfo');
+            if (canvasInfo) {
+                canvasInfo.textContent = `${canvas.width} × ${canvas.height} pixels`;
+            }
+        }
+
+        function applyImageFormat() {
+            const formatSelect = document.getElementById('imageFormat');
+            const customSizeDiv = document.getElementById('customSize');
+            
+            if (!formatSelect) return;
+            
+            if (formatSelect.value === 'custom') {
+                if (!customSizeDiv || customSizeDiv.style.display === 'none') {
+                    if (customSizeDiv) customSizeDiv.style.display = 'block';
+                    return;
+                }
+                
+                const customWidth = parseInt(document.getElementById('customWidth').value);
+                const customHeight = parseInt(document.getElementById('customHeight').value);
+                
+                if (!customWidth || !customHeight || customWidth < 100 || customHeight < 100) {
+                    alert('Por favor, insira dimensões válidas (mínimo 100px)');
+                    return;
+                }
+                
+                canvas.width = customWidth;
+                canvas.height = customHeight;
+            } else {
+                if (customSizeDiv) customSizeDiv.style.display = 'none';
+                const dimensions = formatSelect.value.split('x');
+                canvas.width = parseInt(dimensions[0]);
+                canvas.height = parseInt(dimensions[1]);
+            }
+            
+            updateCanvasInfo();
+            generateFields();
+        }
+
         function isValidHex(hex) {
             return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex);
         }
@@ -408,6 +448,21 @@
                 colorStates[color] = true;
             });
             updateColorPalette();
+        }
+
+        function setupFormatControls() {
+            const formatSelect = document.getElementById('imageFormat');
+            const customSizeDiv = document.getElementById('customSize');
+            
+            if (formatSelect && customSizeDiv) {
+                formatSelect.addEventListener('change', function() {
+                    if (this.value === 'custom') {
+                        customSizeDiv.style.display = 'block';
+                    } else {
+                        customSizeDiv.style.display = 'none';
+                    }
+                });
+            }
         }
 
         function toggleColor(color) {
@@ -808,6 +863,8 @@
 
         // Inicializar
         updateColorPalette();
+        setupFormatControls();
+        updateCanvasInfo();
         generateFields();
         
         // Adicionar evento Enter no input HEX
