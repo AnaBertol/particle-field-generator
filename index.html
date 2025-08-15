@@ -36,6 +36,10 @@
             background: #373737;
             border-radius: 12px;
             box-shadow: 0 0 30px rgba(27, 27, 58, 0.3);
+            max-width: 600px;
+            max-height: 450px;
+            width: auto;
+            height: auto;
         }
 
         .controls {
@@ -359,6 +363,26 @@
             if (canvasInfo) {
                 canvasInfo.textContent = `${canvas.width} × ${canvas.height} pixels`;
             }
+            
+            // Manter tamanho visual consistente na tela
+            const aspectRatio = canvas.width / canvas.height;
+            const maxDisplayWidth = 600;
+            const maxDisplayHeight = 450;
+            
+            let displayWidth, displayHeight;
+            
+            if (aspectRatio > maxDisplayWidth / maxDisplayHeight) {
+                // Canvas é mais largo - limitar pela largura
+                displayWidth = maxDisplayWidth;
+                displayHeight = maxDisplayWidth / aspectRatio;
+            } else {
+                // Canvas é mais alto - limitar pela altura
+                displayHeight = maxDisplayHeight;
+                displayWidth = maxDisplayHeight * aspectRatio;
+            }
+            
+            canvas.style.width = displayWidth + 'px';
+            canvas.style.height = displayHeight + 'px';
         }
 
         function applyImageFormat() {
