@@ -226,6 +226,29 @@
         
         <div class="controls">
             <div class="control-group">
+                <h3>📐 Formato da Imagem</h3>
+                <div class="format-controls">
+                    <select id="imageFormat" style="width: 100%; padding: 8px; background: #333; border: 1px solid #444; color: #FAF9FA; border-radius: 4px; margin-bottom: 10px;">
+                        <option value="800x600">800 × 600 (4:3)</option>
+                        <option value="1920x1080">1920 × 1080 (16:9)</option>
+                        <option value="1080x1080">1080 × 1080 (1:1)</option>
+                        <option value="1080x1920">1080 × 1920 (9:16)</option>
+                        <option value="1200x800">1200 × 800 (3:2)</option>
+                        <option value="1600x900">1600 × 900 (16:9)</option>
+                        <option value="2560x1440">2560 × 1440 (16:9)</option>
+                        <option value="3840x2160">3840 × 2160 (4K)</option>
+                        <option value="custom">Personalizado</option>
+                    </select>
+                    <div id="customSize" style="display: none;">
+                        <input type="number" id="customWidth" placeholder="Largura" min="100" max="8000" style="width: 48%; padding: 6px; background: #333; border: 1px solid #444; color: #FAF9FA; border-radius: 4px;">
+                        <span style="width: 4%; text-align: center; display: inline-block;">×</span>
+                        <input type="number" id="customHeight" placeholder="Altura" min="100" max="8000" style="width: 48%; padding: 6px; background: #333; border: 1px solid #444; color: #FAF9FA; border-radius: 4px;">
+                    </div>
+                    <button onclick="applyImageFormat()" style="margin-top: 8px;">Aplicar Formato</button>
+                </div>
+            </div>
+
+            <div class="control-group">
                 <h3>🔮 Geração de Campos</h3>
                 <button onclick="generateFields()">Gerar Novos Campos</button>
                 <button onclick="exportImage()">Exportar PNG</button>
@@ -619,7 +642,7 @@
             svg.setAttribute("height", canvas.height);
             svg.setAttribute("viewBox", `0 0 ${canvas.width} ${canvas.height}`);
             
-            // Criar definições para gradientes
+            // Criar definições para gradientes e filtros
             const defs = document.createElementNS(svgNS, "defs");
             
             // Fundo
@@ -629,27 +652,40 @@
             background.setAttribute("fill", backgroundColor);
             svg.appendChild(background);
             
-            // Campo de probabilidade (simplificado como gradiente radial geral)
-            const fieldGradient = document.createElementNS(svgNS, "radialGradient");
-            fieldGradient.setAttribute("id", "fieldGradient");
-            fieldGradient.setAttribute("cx", "50%");
-            fieldGradient.setAttribute("cy", "50%");
-            fieldGradient.setAttribute("r", "70%");
+            // Simular o campo de probabilidade usando múltiplos gradientes radiais sobrepostos
+            const fieldIntensity = parseInt(document.getElementById('fieldIntensity').value) / 100;
             
-            const fieldStop1 = document.createElementNS(svgNS, "stop");
-            fieldStop1.setAttribute("offset", "0%");
-            fieldStop1.setAttribute("stop-color", "rgba(100,100,100,0.3)");
+            spheres.forEach((sphere, sphereIndex) => {
+                // Criar gradiente de campo para cada esfera
+                const fieldGradient = document.createElementNS(svgNS, "radialGradient");
+                fieldGradient.setAttribute("id", `fieldGradient${sphereIndex}`);
+                fieldGradient.setAttribute("cx", `${(sphere.x / canvas.width) * 100}%`);
+                fieldGradient.setAttribute("cy", `${(sphere.y / canvas.height) * 100}%`);
+                fieldGradient.setAttribute("r", `${(sphere.size * 3 / Math.min(canvas.width, canvas.height)) * 100}%`);
+                
+                const rgb = hexToRgb(sphere.color);
+                
+                const fieldStop1 = document.createElementNS(svgNS, "stop");
+                fieldStop1.setAttribute("offset", "0%");
+                fieldStop1.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${fieldIntensity * 0.3})`);
+                
+                const fieldStop2 = document.createElementNS(svgNS, "stop");
+                fieldStop2.setAttribute("offset", "30%");
+                fieldStop2.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${fieldIntensity * 0.15})`);
+                
+                const fieldStop3 = document.createElementNS(svgNS, "stop");
+                fieldStop3.setAttribute("offset", "100%");
+                fieldStop3.setAttribute("stop-color", "rgba(55, 55, 55, 0)");
+                
+                fieldGradient.appendChild(fieldStop1);
+                fieldGradient.appendChild(fieldStop2);
+                fieldGradient.appendChild(fieldStop3);
+                defs.appendChild(fieldGradient);
+            });
             
-            const fieldStop2 = document.createElementNS(svgNS, "stop");
-            fieldStop2.setAttribute("offset", "100%");
-            fieldStop2.setAttribute("stop-color", "rgba(60,60,60,0.1)");
-            
-            fieldGradient.appendChild(fieldStop1);
-            fieldGradient.appendChild(fieldStop2);
-            defs.appendChild(fieldGradient);
-            
-            // Criar gradientes para cada esfera
+            // Criar gradientes para as esferas principais
             spheres.forEach((sphere, index) => {
+                // Gradiente principal da esfera
                 const gradient = document.createElementNS(svgNS, "radialGradient");
                 gradient.setAttribute("id", `sphereGradient${index}`);
                 gradient.setAttribute("cx", "50%");
@@ -675,7 +711,7 @@
                 gradient.appendChild(stop3);
                 defs.appendChild(gradient);
 
-                // Núcleo brilhante com gradiente suave
+                // Gradiente do núcleo suave
                 const coreGradient = document.createElementNS(svgNS, "radialGradient");
                 coreGradient.setAttribute("id", `coreGradient${index}`);
                 coreGradient.setAttribute("cx", "50%");
@@ -698,38 +734,61 @@
                 coreGradient.appendChild(coreStop2);
                 coreGradient.appendChild(coreStop3);
                 defs.appendChild(coreGradient);
+
+                // Filtro de blur se necessário
+                if (sphere.blur > 0) {
+                    const filter = document.createElementNS(svgNS, "filter");
+                    filter.setAttribute("id", `blur${index}`);
+                    filter.setAttribute("x", "-50%");
+                    filter.setAttribute("y", "-50%");
+                    filter.setAttribute("width", "200%");
+                    filter.setAttribute("height", "200%");
+                    
+                    const gaussianBlur = document.createElementNS(svgNS, "feGaussianBlur");
+                    gaussianBlur.setAttribute("in", "SourceGraphic");
+                    gaussianBlur.setAttribute("stdDeviation", sphere.blur);
+                    
+                    filter.appendChild(gaussianBlur);
+                    defs.appendChild(filter);
+                }
             });
             
             svg.appendChild(defs);
             
-            // Campo de probabilidade de fundo
-            const fieldRect = document.createElementNS(svgNS, "rect");
-            fieldRect.setAttribute("width", "100%");
-            fieldRect.setAttribute("height", "100%");
-            fieldRect.setAttribute("fill", "url(#fieldGradient)");
-            fieldRect.setAttribute("opacity", "0.6");
-            svg.appendChild(fieldRect);
+            // Desenhar campos de probabilidade de fundo (múltiplas camadas)
+            spheres.forEach((sphere, sphereIndex) => {
+                const fieldRect = document.createElementNS(svgNS, "rect");
+                fieldRect.setAttribute("width", "100%");
+                fieldRect.setAttribute("height", "100%");
+                fieldRect.setAttribute("fill", `url(#fieldGradient${sphereIndex})`);
+                fieldRect.setAttribute("mix-blend-mode", "screen");
+                svg.appendChild(fieldRect);
+            });
             
-            // Desenhar esferas
+            // Desenhar esferas principais
             spheres.forEach((sphere, index) => {
+                // Círculo principal da esfera
                 const circle = document.createElementNS(svgNS, "circle");
                 circle.setAttribute("cx", sphere.x);
                 circle.setAttribute("cy", sphere.y);
                 circle.setAttribute("r", sphere.size);
                 circle.setAttribute("fill", `url(#sphereGradient${index})`);
+                circle.setAttribute("mix-blend-mode", "screen");
                 
                 if (sphere.blur > 0) {
-                    circle.setAttribute("filter", `blur(${sphere.blur}px)`);
+                    circle.setAttribute("filter", `url(#blur${index})`);
                 }
                 
-                // Núcleo brilhante suave
+                svg.appendChild(circle);
+                
+                // Núcleo brilhante
                 const core = document.createElementNS(svgNS, "circle");
                 core.setAttribute("cx", sphere.x);
                 core.setAttribute("cy", sphere.y);
                 core.setAttribute("r", sphere.size * 0.4);
                 core.setAttribute("fill", `url(#coreGradient${index})`);
+                core.setAttribute("mix-blend-mode", "screen");
                 
-                svg.appendChild(circle);
                 svg.appendChild(core);
             });
             
