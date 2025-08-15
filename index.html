@@ -148,55 +148,34 @@
 
         .color-preset {
             display: flex;
+            flex-wrap: wrap;
             gap: 5px;
             margin-top: 8px;
         }
 
         .color-dot {
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             cursor: pointer;
             border: 2px solid transparent;
             transition: all 0.2s ease;
+            position: relative;
         }
 
         .color-dot:hover {
-            transform: scale(1.2);
+            transform: scale(1.1);
             border-color: #FAF9FA;
         }
 
-        .color-dot.selected {
+        .color-dot.active {
             border-color: #FF5722;
             box-shadow: 0 0 8px rgba(255, 87, 34, 0.6);
         }
 
-        .color-controls {
-            display: flex;
-            align-items: center;
-            margin-top: 10px;
-            gap: 5px;
-        }
-
-        .color-dot.removable {
-            position: relative;
-        }
-
-        .color-dot.removable:hover::after {
-            content: '×';
-            position: absolute;
-            top: -2px;
-            right: -2px;
-            width: 16px;
-            height: 16px;
-            background: #ff4444;
-            color: white;
-            border-radius: 50%;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
+        .color-dot.inactive {
+            opacity: 0.3;
+            border-color: #666;
         }
     </style>
 </head>
@@ -260,22 +239,20 @@
             <div class="control-group">
                 <h3>🎨 Paleta de Cores</h3>
                 <div class="color-preset" id="colorPalette">
-                    <div class="color-dot selected" style="background: #1B1B3A" onclick="selectColor('#1B1B3A')"></div>
-                    <div class="color-dot" style="background: #4A0E4E" onclick="selectColor('#4A0E4E')"></div>
-                    <div class="color-dot" style="background: #1E88E5" onclick="selectColor('#1E88E5')"></div>
-                    <div class="color-dot" style="background: #FF5722" onclick="selectColor('#FF5722')"></div>
-                    <div class="color-dot" style="background: #F8BBD9" onclick="selectColor('#F8BBD9')"></div>
-                    <div class="color-dot" style="background: #9C27B0" onclick="selectColor('#9C27B0')"></div>
-                    <div class="color-dot" style="background: #D7CCC8" onclick="selectColor('#D7CCC8')"></div>
+                    <!-- As cores serão geradas dinamicamente -->
                 </div>
                 <div class="color-controls">
-                    <input type="color" id="colorPicker" value="#FF0080" style="width: 40px; height: 30px; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
-                    <button onclick="addCustomColor()" style="width: auto; padding: 6px 12px; margin: 5px 5px 5px 0; font-size: 12px;">Adicionar Cor</button>
-                    <button onclick="clearCustomColors()" style="width: auto; padding: 6px 12px; margin: 5px 0; font-size: 12px; background: #666;">Limpar Tudo</button>
+                    <input type="text" id="hexInput" placeholder="#FF0080" maxlength="7" style="width: 80px; padding: 6px; background: #333; border: 1px solid #444; color: #FAF9FA; border-radius: 4px; text-align: center; font-family: monospace;">
+                    <button onclick="addCustomColor()" style="width: auto; padding: 6px 12px; margin: 0; font-size: 12px;">Adicionar</button>
+                    <button onclick="resetColors()" style="width: auto; padding: 6px 12px; margin: 0; font-size: 12px; background: #666;">Reset</button>
+                </div>
+                <div style="font-size: 11px; color: #1E88E5; margin-top: 8px;">
+                    💡 Clique nas cores para ativar/desativar<br>
+                    🔴 Ativas (borda laranja) | ⚪ Inativas (opacas)<br>
+                    🗑️ Clique direito em cores customizadas para remover
                 </div>
                 <div class="slider-container" style="margin-top: 12px;">
-                    <label>Usar Cores Selecionadas: <span class="value" id="useSelectedColorsValue">100</span>%</label>
-                    <input type="range" id="useSelectedColors" min="0" max="100" value="100" oninput="updateValue('useSelectedColorsValue', this.value)">
+                    <label>Cores Ativas: <span class="value" id="activeColorsCount">7</span></label>
                 </div>
             </div>
 
@@ -296,8 +273,7 @@
                 • Esferas representam partículas quânticas<br>
                 • O fundo mostra a intensidade de probabilidade<br>
                 • Blur simula incerteza da posição<br>
-                • Conectividade cria correlações<br>
-                • Experimente diferentes configurações!
+                • Exporte em PNG ou SVG<br>
             </div>
         </div>
     </div>
@@ -306,32 +282,56 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         let spheres = [];
-        let selectedColor = '#1B1B3A';
-        let customColors = [];
         
         // SUAS CORES DA IMAGEM (cores padrão)
         const defaultColorPalette = ['#1B1B3A', '#4A0E4E', '#1E88E5', '#FF5722', '#F8BBD9', '#9C27B0', '#D7CCC8'];
+        let customColors = [];
         let colorPalette = [...defaultColorPalette];
         const backgroundColor = '#373737';
+        
+        // Estados das cores (todas ativas por padrão)
+        let colorStates = {};
+        colorPalette.forEach(color => {
+            colorStates[color] = true;
+        });
 
         function updateValue(id, value) {
             document.getElementById(id).textContent = value + (id.includes('Value') && !id.includes('Count') ? '' : '');
         }
 
-        function selectColor(color) {
-            selectedColor = color;
-            document.querySelectorAll('.color-dot').forEach(dot => dot.classList.remove('selected'));
-            event.target.classList.add('selected');
+        function isValidHex(hex) {
+            return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex);
         }
 
         function addCustomColor() {
-            const colorPicker = document.getElementById('colorPicker');
-            const newColor = colorPicker.value;
+            const hexInput = document.getElementById('hexInput');
+            if (!hexInput) return;
+            
+            let newColor = hexInput.value.trim();
+            
+            // Adicionar # se não tiver
+            if (!newColor.startsWith('#')) {
+                newColor = '#' + newColor;
+            }
+            
+            // Converter para 6 dígitos se for 3
+            if (newColor.length === 4) {
+                newColor = '#' + newColor[1] + newColor[1] + newColor[2] + newColor[2] + newColor[3] + newColor[3];
+            }
+            
+            if (!isValidHex(newColor)) {
+                alert('Código HEX inválido! Use formato #RRGGBB ou #RGB');
+                return;
+            }
             
             if (!colorPalette.includes(newColor)) {
                 colorPalette.push(newColor);
                 customColors.push(newColor);
+                colorStates[newColor] = true; // Nova cor ativa por padrão
                 updateColorPalette();
+                hexInput.value = '';
+            } else {
+                alert('Esta cor já existe na paleta!');
             }
         }
 
@@ -340,13 +340,23 @@
             if (index > -1) {
                 colorPalette.splice(index, 1);
                 customColors = customColors.filter(c => c !== color);
+                delete colorStates[color];
                 updateColorPalette();
             }
         }
 
-        function clearCustomColors() {
+        function resetColors() {
             customColors = [];
             colorPalette = [...defaultColorPalette];
+            colorStates = {};
+            defaultColorPalette.forEach(color => {
+                colorStates[color] = true;
+            });
+            updateColorPalette();
+        }
+
+        function toggleColor(color) {
+            colorStates[color] = !colorStates[color];
             updateColorPalette();
         }
 
@@ -358,46 +368,25 @@
             defaultColorPalette.forEach(color => {
                 const dot = document.createElement('div');
                 dot.className = 'color-dot';
-                if (color === selectedColor) dot.classList.add('selected');
+                dot.className += colorStates[color] ? ' active' : ' inactive';
                 dot.style.background = color;
-                dot.onclick = () => selectColor(color);
+                dot.onclick = () => toggleColor(color);
+                dot.title = color.toUpperCase() + (colorStates[color] ? ' (ativa)' : ' (inativa)');
                 paletteContainer.appendChild(dot);
-                // Núcleo brilhante com gradiente suave
-                const coreGradient = document.createElementNS(svgNS, "radialGradient");
-                coreGradient.setAttribute("id", `coreGradient${index}`);
-                coreGradient.setAttribute("cx", "50%");
-                coreGradient.setAttribute("cy", "50%");
-                coreGradient.setAttribute("r", "50%");
-                
-                const coreStop1 = document.createElementNS(svgNS, "stop");
-                coreStop1.setAttribute("offset", "0%");
-                coreStop1.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
-                
-                const coreStop2 = document.createElementNS(svgNS, "stop");
-                coreStop2.setAttribute("offset", "50%");
-                coreStop2.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
-                
-                const coreStop3 = document.createElementNS(svgNS, "stop");
-                coreStop3.setAttribute("offset", "100%");
-                coreStop3.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
-                
-                coreGradient.appendChild(coreStop1);
-                coreGradient.appendChild(coreStop2);
-                coreGradient.appendChild(coreStop3);
-                defs.appendChild(coreGradient);
             });
             
             // Adicionar cores customizadas
             customColors.forEach(color => {
                 const dot = document.createElement('div');
                 dot.className = 'color-dot removable';
-                if (color === selectedColor) dot.classList.add('selected');
+                dot.className += colorStates[color] ? ' active' : ' inactive';
                 dot.style.background = color;
                 dot.onclick = (e) => {
                     if (e.target === dot) {
-                        selectColor(color);
+                        toggleColor(color);
                     }
                 };
+                dot.title = color.toUpperCase() + (colorStates[color] ? ' (ativa)' : ' (inativa)') + ' - Clique direito para remover';
                 
                 // Adicionar funcionalidade de remoção
                 dot.addEventListener('contextmenu', (e) => {
@@ -407,14 +396,25 @@
                 
                 paletteContainer.appendChild(dot);
             });
+            
+            // Atualizar contador de cores ativas
+            const activeCount = getActiveColors().length;
+            const counterElement = document.getElementById('activeColorsCount');
+            if (counterElement) {
+                counterElement.textContent = activeCount;
+            }
+        }
+
+        function getActiveColors() {
+            return colorPalette.filter(color => colorStates[color]);
         }
 
         function getRandomColor() {
-            const useSelectedColors = parseInt(document.getElementById('useSelectedColors').value) / 100;
-            if (Math.random() < useSelectedColors && colorPalette.length > 0) {
-                return colorPalette[Math.floor(Math.random() * colorPalette.length)];
+            const activeColors = getActiveColors();
+            if (activeColors.length === 0) {
+                return '#FFFFFF'; // Fallback se nenhuma cor estiver ativa
             }
-            return selectedColor;
+            return activeColors[Math.floor(Math.random() * activeColors.length)];
         }
 
         function hexToRgb(hex) {
@@ -526,10 +526,6 @@
             ctx.fill();
             
             ctx.restore();
-        }
-
-        function drawConnections() {
-            // Conexões removidas conforme solicitado
         }
 
         function generateFields() {
@@ -646,6 +642,30 @@
                 gradient.appendChild(stop2);
                 gradient.appendChild(stop3);
                 defs.appendChild(gradient);
+
+                // Núcleo brilhante com gradiente suave
+                const coreGradient = document.createElementNS(svgNS, "radialGradient");
+                coreGradient.setAttribute("id", `coreGradient${index}`);
+                coreGradient.setAttribute("cx", "50%");
+                coreGradient.setAttribute("cy", "50%");
+                coreGradient.setAttribute("r", "50%");
+                
+                const coreStop1 = document.createElementNS(svgNS, "stop");
+                coreStop1.setAttribute("offset", "0%");
+                coreStop1.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
+                
+                const coreStop2 = document.createElementNS(svgNS, "stop");
+                coreStop2.setAttribute("offset", "50%");
+                coreStop2.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
+                
+                const coreStop3 = document.createElementNS(svgNS, "stop");
+                coreStop3.setAttribute("offset", "100%");
+                coreStop3.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+                
+                coreGradiente.appendChild(coreStop1);
+                coreGradient.appendChild(coreStop2);
+                coreGradient.appendChild(coreStop3);
+                defs.appendChild(coreGradient);
             });
             
             svg.appendChild(defs);
@@ -696,7 +716,15 @@
         }
 
         // Inicializar
+        updateColorPalette();
         generateFields();
+        
+        // Adicionar evento Enter no input HEX
+        document.getElementById('hexInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addCustomColor();
+            }
+        });
     </script>
 </body>
 </html>
