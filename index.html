@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Campos de Probabilidade</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #FAF9FA;
+            font-family: 'Consolas', 'Monaco', monospace;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #111;
+        }
+
+        canvas {
+            border: 2px solid #1B1B3A;
+            background: #373737;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(27, 27, 58, 0.3);
+        }
+
+        .controls {
+            width: 320px;
+            background: #1a1a1a;
+            padding: 20px;
+            border-left: 2px solid #4A0E4E;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #222;
+            border-radius: 8px;
+            border: 1px solid #4A0E4E;
+        }
+
+        .control-group h3 {
+            color: #1B1B3A;
+            margin-bottom: 12px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .slider-container {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            color: #1E88E5;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            outline: none;
+            border-radius: 3px;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #1B1B3A;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(27, 27, 58, 0.5);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #1B1B3A;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 8px rgba(27, 27, 58, 0.5);
+        }
+
+        .value {
+            color: #FF5722;
+            font-weight: bold;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #1B1B3A, #4A0E4E);
+            color: #FAF9FA;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #4A0E4E, #1B1B3A);
+            box-shadow: 0 0 20px rgba(27, 27, 58, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .info {
+            background: #4A0E4E;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #F8BBD9;
+            border: 1px solid #1B1B3A;
+        }
+
+        .canvas-info {
+            text-align: center;
+            margin-top: 10px;
+            color: #1E88E5;
+            font-size: 12px;
+        }
+
+        .color-preset {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .color-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .color-dot:hover {
+            transform: scale(1.2);
+            border-color: #FAF9FA;
+        }
+
+        .color-dot.selected {
+            border-color: #FF5722;
+            box-shadow: 0 0 8px rgba(255, 87, 34, 0.6);
+        }
+
+        .color-controls {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+            gap: 5px;
+        }
+
+        .color-dot.removable {
+            position: relative;
+        }
+
+        .color-dot.removable:hover::after {
+            content: '×';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 16px;
+            height: 16px;
+            background: #ff4444;
+            color: white;
+            border-radius: 50%;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="canvas-container">
+            <div>
+                <canvas id="canvas" width="800" height="600"></canvas>
+                <div class="canvas-info">
+                    <span id="canvasInfo">800 × 600 pixels</span>
+                    <span>|</span>
+                    <span id="fieldCount">0 campos</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h3>🔮 Geração de Campos</h3>
+                <button onclick="generateFields()">Gerar Novos Campos</button>
+                <button onclick="exportImage()">Exportar PNG</button>
+                <button onclick="exportSVG()">Exportar SVG</button>
+            </div>
+
+            <div class="control-group">
+                <h3>⚛️ Parâmetros dos Campos</h3>
+                <div class="slider-container">
+                    <label>Número de Esferas: <span class="value" id="sphereCountValue">12</span></label>
+                    <input type="range" id="sphereCount" min="3" max="30" value="12" oninput="updateValue('sphereCountValue', this.value)">
+                </div>
+                <div class="slider-container">
+                    <label>Tamanho Mín: <span class="value" id="minSizeValue">20</span>px</label>
+                    <input type="range" id="minSize" min="10" max="80" value="20" oninput="updateValue('minSizeValue', this.value)">
+                </div>
+                <div class="slider-container">
+                    <label>Tamanho Máx: <span class="value" id="maxSizeValue">120</span>px</label>
+                    <input type="range" id="maxSize" min="50" max="200" value="120" oninput="updateValue('maxSizeValue', this.value)">
+                </div>
+                <div class="slider-container">
+                    <label>Intensidade dos Campos: <span class="value" id="fieldIntensityValue">60</span>%</label>
+                    <input type="range" id="fieldIntensity" min="20" max="100" value="60" oninput="updateValue('fieldIntensityValue', this.value)">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>🌊 Definição e Blur</h3>
+                <div class="slider-container">
+                    <label>Blur Mínimo: <span class="value" id="minBlurValue">0</span>px</label>
+                    <input type="range" id="minBlur" min="0" max="20" value="0" oninput="updateValue('minBlurValue', this.value)">
+                </div>
+                <div class="slider-container">
+                    <label>Blur Máximo: <span class="value" id="maxBlurValue">8</span>px</label>
+                    <input type="range" id="maxBlur" min="2" max="30" value="8" oninput="updateValue('maxBlurValue', this.value)">
+                </div>
+                <div class="slider-container">
+                    <label>Variação de Definição: <span class="value" id="blurVariationValue">80</span>%</label>
+                    <input type="range" id="blurVariation" min="0" max="100" value="80" oninput="updateValue('blurVariationValue', this.value)">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>🎨 Paleta de Cores</h3>
+                <div class="color-preset" id="colorPalette">
+                    <div class="color-dot selected" style="background: #1B1B3A" onclick="selectColor('#1B1B3A')"></div>
+                    <div class="color-dot" style="background: #4A0E4E" onclick="selectColor('#4A0E4E')"></div>
+                    <div class="color-dot" style="background: #1E88E5" onclick="selectColor('#1E88E5')"></div>
+                    <div class="color-dot" style="background: #FF5722" onclick="selectColor('#FF5722')"></div>
+                    <div class="color-dot" style="background: #F8BBD9" onclick="selectColor('#F8BBD9')"></div>
+                    <div class="color-dot" style="background: #9C27B0" onclick="selectColor('#9C27B0')"></div>
+                    <div class="color-dot" style="background: #D7CCC8" onclick="selectColor('#D7CCC8')"></div>
+                </div>
+                <div class="color-controls">
+                    <input type="color" id="colorPicker" value="#FF0080" style="width: 40px; height: 30px; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
+                    <button onclick="addCustomColor()" style="width: auto; padding: 6px 12px; margin: 5px 5px 5px 0; font-size: 12px;">Adicionar Cor</button>
+                    <button onclick="clearCustomColors()" style="width: auto; padding: 6px 12px; margin: 5px 0; font-size: 12px; background: #666;">Limpar Tudo</button>
+                </div>
+                <div class="slider-container" style="margin-top: 12px;">
+                    <label>Usar Cores Selecionadas: <span class="value" id="useSelectedColorsValue">100</span>%</label>
+                    <input type="range" id="useSelectedColors" min="0" max="100" value="100" oninput="updateValue('useSelectedColorsValue', this.value)">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>🔬 Campo de Probabilidade</h3>
+                <div class="slider-container">
+                    <label>Densidade do Campo: <span class="value" id="fieldDensityValue">40</span>%</label>
+                    <input type="range" id="fieldDensity" min="10" max="80" value="40" oninput="updateValue('fieldDensityValue', this.value)">
+                </div>
+                <div class="slider-container">
+                    <label>Ruído Quântico: <span class="value" id="quantumNoiseValue">25</span>%</label>
+                    <input type="range" id="quantumNoise" min="0" max="60" value="25" oninput="updateValue('quantumNoiseValue', this.value)">
+                </div>
+            </div>
+
+            <div class="info">
+                <strong>Campos de Probabilidade</strong><br>
+                • Esferas representam partículas quânticas<br>
+                • O fundo mostra a intensidade de probabilidade<br>
+                • Blur simula incerteza da posição<br>
+                • Conectividade cria correlações<br>
+                • Experimente diferentes configurações!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let spheres = [];
+        let selectedColor = '#1B1B3A';
+        let customColors = [];
+        
+        // SUAS CORES DA IMAGEM (cores padrão)
+        const defaultColorPalette = ['#1B1B3A', '#4A0E4E', '#1E88E5', '#FF5722', '#F8BBD9', '#9C27B0', '#D7CCC8'];
+        let colorPalette = [...defaultColorPalette];
+        const backgroundColor = '#373737';
+
+        function updateValue(id, value) {
+            document.getElementById(id).textContent = value + (id.includes('Value') && !id.includes('Count') ? '' : '');
+        }
+
+        function selectColor(color) {
+            selectedColor = color;
+            document.querySelectorAll('.color-dot').forEach(dot => dot.classList.remove('selected'));
+            event.target.classList.add('selected');
+        }
+
+        function addCustomColor() {
+            const colorPicker = document.getElementById('colorPicker');
+            const newColor = colorPicker.value;
+            
+            if (!colorPalette.includes(newColor)) {
+                colorPalette.push(newColor);
+                customColors.push(newColor);
+                updateColorPalette();
+            }
+        }
+
+        function removeCustomColor(color) {
+            const index = colorPalette.indexOf(color);
+            if (index > -1) {
+                colorPalette.splice(index, 1);
+                customColors = customColors.filter(c => c !== color);
+                updateColorPalette();
+            }
+        }
+
+        function clearCustomColors() {
+            customColors = [];
+            colorPalette = [...defaultColorPalette];
+            updateColorPalette();
+        }
+
+        function updateColorPalette() {
+            const paletteContainer = document.getElementById('colorPalette');
+            paletteContainer.innerHTML = '';
+            
+            // Adicionar cores padrão
+            defaultColorPalette.forEach(color => {
+                const dot = document.createElement('div');
+                dot.className = 'color-dot';
+                if (color === selectedColor) dot.classList.add('selected');
+                dot.style.background = color;
+                dot.onclick = () => selectColor(color);
+                paletteContainer.appendChild(dot);
+                // Núcleo brilhante com gradiente suave
+                const coreGradient = document.createElementNS(svgNS, "radialGradient");
+                coreGradient.setAttribute("id", `coreGradient${index}`);
+                coreGradient.setAttribute("cx", "50%");
+                coreGradient.setAttribute("cy", "50%");
+                coreGradient.setAttribute("r", "50%");
+                
+                const coreStop1 = document.createElementNS(svgNS, "stop");
+                coreStop1.setAttribute("offset", "0%");
+                coreStop1.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
+                
+                const coreStop2 = document.createElementNS(svgNS, "stop");
+                coreStop2.setAttribute("offset", "50%");
+                coreStop2.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
+                
+                const coreStop3 = document.createElementNS(svgNS, "stop");
+                coreStop3.setAttribute("offset", "100%");
+                coreStop3.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+                
+                coreGradient.appendChild(coreStop1);
+                coreGradient.appendChild(coreStop2);
+                coreGradient.appendChild(coreStop3);
+                defs.appendChild(coreGradient);
+            });
+            
+            // Adicionar cores customizadas
+            customColors.forEach(color => {
+                const dot = document.createElement('div');
+                dot.className = 'color-dot removable';
+                if (color === selectedColor) dot.classList.add('selected');
+                dot.style.background = color;
+                dot.onclick = (e) => {
+                    if (e.target === dot) {
+                        selectColor(color);
+                    }
+                };
+                
+                // Adicionar funcionalidade de remoção
+                dot.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    removeCustomColor(color);
+                });
+                
+                paletteContainer.appendChild(dot);
+            });
+        }
+
+        function getRandomColor() {
+            const useSelectedColors = parseInt(document.getElementById('useSelectedColors').value) / 100;
+            if (Math.random() < useSelectedColors && colorPalette.length > 0) {
+                return colorPalette[Math.floor(Math.random() * colorPalette.length)];
+            }
+            return selectedColor;
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function createProbabilityField() {
+            const fieldDensity = parseInt(document.getElementById('fieldDensity').value) / 100;
+            const fieldIntensity = parseInt(document.getElementById('fieldIntensity').value) / 100;
+            const quantumNoise = parseInt(document.getElementById('quantumNoise').value) / 100;
+            
+            // Criar gradiente de probabilidade baseado nas esferas
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            for (let x = 0; x < canvas.width; x++) {
+                for (let y = 0; y < canvas.height; y++) {
+                    let totalInfluence = 0;
+                    let r = 55, g = 55, b = 55; // Cor base do fundo
+                    
+                    // Calcular influência de cada esfera
+                    spheres.forEach(sphere => {
+                        const distance = Math.sqrt((x - sphere.x) ** 2 + (y - sphere.y) ** 2);
+                        const maxDistance = sphere.size * 3; // Campo de influência
+                        
+                        if (distance < maxDistance) {
+                            const influence = (1 - distance / maxDistance) * fieldIntensity;
+                            totalInfluence += influence;
+                            
+                            // Misturar cores baseado na influência
+                            const sphereRgb = hexToRgb(sphere.color);
+                            if (sphereRgb) {
+                                r += sphereRgb.r * influence * 0.3;
+                                g += sphereRgb.g * influence * 0.3;
+                                b += sphereRgb.b * influence * 0.3;
+                            }
+                        }
+                    });
+                    
+                    // Aplicar ruído quântico
+                    if (quantumNoise > 0) {
+                        const noise = (Math.random() - 0.5) * quantumNoise * 100;
+                        r += noise;
+                        g += noise;
+                        b += noise;
+                    }
+                    
+                    // Normalizar cores
+                    r = Math.min(255, Math.max(0, r));
+                    g = Math.min(255, Math.max(0, g));
+                    b = Math.min(255, Math.max(0, b));
+                    
+                    const alpha = Math.min(255, 100 + totalInfluence * 155);
+                    
+                    const index = (y * canvas.width + x) * 4;
+                    data[index] = r;
+                    data[index + 1] = g;
+                    data[index + 2] = b;
+                    data[index + 3] = alpha;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function drawSphere(sphere) {
+            const gradient = ctx.createRadialGradient(
+                sphere.x, sphere.y, 0,
+                sphere.x, sphere.y, sphere.size
+            );
+            
+            const rgb = hexToRgb(sphere.color);
+            gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.9)`);
+            gradient.addColorStop(0.7, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`);
+            gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`);
+            
+            ctx.save();
+            
+            // Aplicar blur baseado na definição da esfera
+            if (sphere.blur > 0) {
+                ctx.filter = `blur(${sphere.blur}px)`;
+            }
+            
+            ctx.globalCompositeOperation = 'screen';
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(sphere.x, sphere.y, sphere.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Núcleo mais brilhante com gradiente suave
+            const coreGradient = ctx.createRadialGradient(
+                sphere.x, sphere.y, 0,
+                sphere.x, sphere.y, sphere.size * 0.4
+            );
+            
+            coreGradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
+            coreGradient.addColorStop(0.5, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
+            coreGradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+            
+            ctx.globalCompositeOperation = 'screen';
+            ctx.fillStyle = coreGradient;
+            ctx.beginPath();
+            ctx.arc(sphere.x, sphere.y, sphere.size * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        function drawConnections() {
+            // Conexões removidas conforme solicitado
+        }
+
+        function generateFields() {
+            const sphereCount = parseInt(document.getElementById('sphereCount').value);
+            const minSize = parseInt(document.getElementById('minSize').value);
+            const maxSize = parseInt(document.getElementById('maxSize').value);
+            const minBlur = parseInt(document.getElementById('minBlur').value);
+            const maxBlur = parseInt(document.getElementById('maxBlur').value);
+            const blurVariation = parseInt(document.getElementById('blurVariation').value) / 100;
+            
+            spheres = [];
+            
+            // Limpar canvas
+            ctx.fillStyle = backgroundColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Gerar esferas
+            for (let i = 0; i < sphereCount; i++) {
+                const size = minSize + Math.random() * (maxSize - minSize);
+                const x = size + Math.random() * (canvas.width - size * 2);
+                const y = size + Math.random() * (canvas.height - size * 2);
+                
+                // Calcular blur baseado na variação
+                let blur = 0;
+                if (Math.random() < blurVariation) {
+                    blur = minBlur + Math.random() * (maxBlur - minBlur);
+                }
+                
+                spheres.push({
+                    x: x,
+                    y: y,
+                    size: size,
+                    color: getRandomColor(),
+                    blur: blur
+                });
+            }
+            
+            // Desenhar campo de probabilidade
+            createProbabilityField();
+            
+            // Desenhar esferas (sem conexões)
+            spheres.forEach(sphere => drawSphere(sphere));
+            
+            // Atualizar contador
+            document.getElementById('fieldCount').textContent = spheres.length + ' campos';
+        }
+
+        function exportImage() {
+            const link = document.createElement('a');
+            link.download = 'campos_probabilidade.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function exportSVG() {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            svg.setAttribute("width", canvas.width);
+            svg.setAttribute("height", canvas.height);
+            svg.setAttribute("viewBox", `0 0 ${canvas.width} ${canvas.height}`);
+            
+            // Criar definições para gradientes
+            const defs = document.createElementNS(svgNS, "defs");
+            
+            // Fundo
+            const background = document.createElementNS(svgNS, "rect");
+            background.setAttribute("width", "100%");
+            background.setAttribute("height", "100%");
+            background.setAttribute("fill", backgroundColor);
+            svg.appendChild(background);
+            
+            // Campo de probabilidade (simplificado como gradiente radial geral)
+            const fieldGradient = document.createElementNS(svgNS, "radialGradient");
+            fieldGradient.setAttribute("id", "fieldGradient");
+            fieldGradient.setAttribute("cx", "50%");
+            fieldGradient.setAttribute("cy", "50%");
+            fieldGradient.setAttribute("r", "70%");
+            
+            const fieldStop1 = document.createElementNS(svgNS, "stop");
+            fieldStop1.setAttribute("offset", "0%");
+            fieldStop1.setAttribute("stop-color", "rgba(100,100,100,0.3)");
+            
+            const fieldStop2 = document.createElementNS(svgNS, "stop");
+            fieldStop2.setAttribute("offset", "100%");
+            fieldStop2.setAttribute("stop-color", "rgba(60,60,60,0.1)");
+            
+            fieldGradient.appendChild(fieldStop1);
+            fieldGradient.appendChild(fieldStop2);
+            defs.appendChild(fieldGradient);
+            
+            // Criar gradientes para cada esfera
+            spheres.forEach((sphere, index) => {
+                const gradient = document.createElementNS(svgNS, "radialGradient");
+                gradient.setAttribute("id", `sphereGradient${index}`);
+                gradient.setAttribute("cx", "50%");
+                gradient.setAttribute("cy", "50%");
+                gradient.setAttribute("r", "50%");
+                
+                const rgb = hexToRgb(sphere.color);
+                
+                const stop1 = document.createElementNS(svgNS, "stop");
+                stop1.setAttribute("offset", "0%");
+                stop1.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.9)`);
+                
+                const stop2 = document.createElementNS(svgNS, "stop");
+                stop2.setAttribute("offset", "70%");
+                stop2.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`);
+                
+                const stop3 = document.createElementNS(svgNS, "stop");
+                stop3.setAttribute("offset", "100%");
+                stop3.setAttribute("stop-color", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`);
+                
+                gradient.appendChild(stop1);
+                gradient.appendChild(stop2);
+                gradient.appendChild(stop3);
+                defs.appendChild(gradient);
+            });
+            
+            svg.appendChild(defs);
+            
+            // Campo de probabilidade de fundo
+            const fieldRect = document.createElementNS(svgNS, "rect");
+            fieldRect.setAttribute("width", "100%");
+            fieldRect.setAttribute("height", "100%");
+            fieldRect.setAttribute("fill", "url(#fieldGradient)");
+            fieldRect.setAttribute("opacity", "0.6");
+            svg.appendChild(fieldRect);
+            
+            // Desenhar esferas
+            spheres.forEach((sphere, index) => {
+                const circle = document.createElementNS(svgNS, "circle");
+                circle.setAttribute("cx", sphere.x);
+                circle.setAttribute("cy", sphere.y);
+                circle.setAttribute("r", sphere.size);
+                circle.setAttribute("fill", `url(#sphereGradient${index})`);
+                
+                if (sphere.blur > 0) {
+                    circle.setAttribute("filter", `blur(${sphere.blur}px)`);
+                }
+                
+                // Núcleo brilhante suave
+                const core = document.createElementNS(svgNS, "circle");
+                core.setAttribute("cx", sphere.x);
+                core.setAttribute("cy", sphere.y);
+                core.setAttribute("r", sphere.size * 0.4);
+                core.setAttribute("fill", `url(#coreGradient${index})`);
+                
+                svg.appendChild(circle);
+                svg.appendChild(core);
+            });
+            
+            // Converter SVG para string e fazer download
+            const serializer = new XMLSerializer();
+            const svgString = serializer.serializeToString(svg);
+            const blob = new Blob([svgString], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.download = 'campos_probabilidade.svg';
+            link.href = url;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        // Inicializar
+        generateFields();
+    </script>
+</body>
+</html>
